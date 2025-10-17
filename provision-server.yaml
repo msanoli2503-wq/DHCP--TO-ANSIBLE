@@ -1,0 +1,54 @@
+
+
+- name: Configurar servidor DHCP
+  hosts: server
+  become: yes
+  tasks:
+    - name: Actualizar lista de paquetes
+      apt:
+        update_cache: yes
+      # Equivale a: sudo apt-get update -y
+
+    - name: Instalar servidor DHCP
+      apt:
+        name: isc-dhcp-server
+        state: present
+      # Equivale a: sudo apt-get install -y isc-dhcp-server
+
+    - name: Crear archivo de configuración dhcpd.conf
+      copy:
+        dest: /etc/dhcp/dhcpd.conf
+        content: |
+          default-lease-time 86400;
+          max-lease-time 691200;
+          authoritative;
+          option domain-name "micasa.es.";
+          option domain-name-servers 8.8.8.8, 4.4.4.4;
+
+          subnet 192.168.57.0 netmask 255.255.255.0 {
+            range 192.168.57.25 192.168.57.50;
+            option routers 192.168.57.10;
+            option broadcast-address 192.168.57.255;
+          }
+
+          host c2 {
+            hardware ethernet 08:00:27:ab:cd:ef;
+            fixed-address 192.168.57.4;
+            default-lease-time 3600;
+            option domain-name-servers 1.1.1.1;
+          }
+      # Equivale a: cat <<EOF > /etc/dhcp/dhcpd.conf ...
+
+    - name: Configurar interfaz para DHCP
+      lineinfile:
+        path: /etc/default/isc-dhcp-server
+        regexp: '^INTERFACESv4='
+        line: 'INTERFACESv4="eth2"'
+      # Equivale a: echo 'INTERFACESv4="eth2"' > /etc/default/isc-dhcp-server
+
+    - name: Reiniciar y habilitar servicio DHCP
+      service:
+        name: isc-dhcp-server
+        state: restarted
+        enabled: yes
+      # Equivale a: systemctl restart isc-dhcp-server && systemctl enable isc-dhcp-server
